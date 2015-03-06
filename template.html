@@ -1,1 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebTail</title>
+    <meta charset="utf-8"/>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <link href="/static/css/bootstrap.min.css" type="text/css" rel="stylesheet"/>
+    <style>
+        body {
+            padding-top: 60px;
+        }
+    </style>
+</head>
+<body>
 
+    <section>
+
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container-fluid">
+                    <div class="span-2">
+                        <h1 class="brand">WebTail</h1>
+                    </div>
+                    <form class="navbar-search pull-left" action="#">
+                        <input type="text" class="search-query span4" placeholder="Filter" />
+                    </form>
+                    {% if username %}
+                    <div class="nav-collapse">
+                        <p class="navbar-text pull-right">
+                            {{ username }}
+                            <a href="/signout/"><strong>×</strong></a>
+                        </p>
+                    </div>
+                    {% end %}
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row-fluid">
+                <div class="tabbable tabs-left">
+                    <div id='pg'>
+                        <input id = "count" size="5" style="width: 30px;">
+                        <button type="button" id="amount" style="margin-bottom: 7px;">Amount</button><br>
+                        <input id="msg" size="20" style="width: 45px;">
+                        <button type="button" id="send" style="margin-bottom: 7px;">Send</button>
+                    </div><br>
+                    <ul class="nav nav-tabs">
+                        {% for filename, uuid in tails %}
+                            <li class="{% if filename == tails[0][0] %}active{% end %}">  <!-- Block with logfile name -->
+                                <a href="#{{ uuid }}" data-toggle="tab">{{ filename }}</a>
+                            </li>
+                        {% end %}
+                    </ul>
+                    <div class="tab-content">
+                        {% for filename, uuid in tails %}
+                        <div class="tab-pane{% if filename == tails[0][0] %} active{% end %}" id="{{ uuid }}"> <!-- Block with log rows -->
+                            <!-- -->
+                        </div>
+                        {% end %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <script type="text/javascript" charset="utf-8">
+    $(function(){
+        if ("MozWebSocket" in window) {
+            WebSocket = MozWebSocket;
+        }
+        if (WebSocket) {
+            var ws = new WebSocket("wss://{{ hostname }}/tail/"); //ws or wss protocol depending either on http or https connection;
+            ws.onopen = function() {};
+            var pg = 19;
+            $('#amount').click(function() {
+                pg = count.value - 1;
+            });
+            ws.onmessage = function (evt) {
+                console.debug(evt.data);
+                var data = $.parseJSON(evt.data);
+                var tail = $('#' + data[0]); //'tail' is a div with all the log rows, separate for each log file;
+                $(tail).prepend('<pre' + '' + 'class="' + data[0] + '"' + '>' + data[1] + '</pre>'); //adding rows to the top of our div, wrapped in a <pre> block
+                $('.' + data[0] + ':gt(' + pg + ')').remove(); //watching for amount of blocks to remove excess
+                $('form input').keyup();
+            };
+            $('#send').click(function(){
+                ws.send(document.getElementById('msg').value);
+            });
+            ws.onclose = function() {};
+        } else {
+            alert("WebSocket not supported");
+        }
+        $('form input').keyup(function(e){
+            var arg = e.target.value;
+            if (arg != '') {
+                $('pre').hide();
+                $("pre:contains('" + arg + "')").show();
+            } else {
+                $('pre').show();
+            }
+        });
+        $('form').submit(function(){
+            return false;
+        })
+    });
+    </script>
+
+</body>
+</html>
